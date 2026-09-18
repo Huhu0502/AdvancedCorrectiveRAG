@@ -63,9 +63,21 @@ builder.add_edge('rewriter_node', 'main_agent')
 
 
 def generate_process(state: State):
-    tool_messages = state['messages'][-1]
+    messages = state['messages']
+    human_messages = {}
 
-    resp = generate_agent.invoke({'tool_output': tool_messages.content})
+    for i in range(len(messages) - 1, -1, -1):
+        msg = messages[i]
+        if isinstance(msg, HumanMessage):
+            human_messages = msg
+    tool_messages = messages[-1]
+
+    resp = generate_agent.invoke(
+        {
+            'tool_output': tool_messages.content,
+            'user_question': human_messages
+        }
+    )
     log.info('当前处于"generate_node"')
     return {'messages': [resp]}
 
@@ -97,10 +109,10 @@ def rewriter_router(state: State):
 
     if re.search(r'\bYES\b', raw_content.content.strip().upper()):
         log.info(f'judge_llm 判断结果： {raw_content.content.strip()}')
-        return "no"
+        return "yes"
     elif re.search(r'\bNO\b', raw_content.content.strip().upper()):
         log.info(f'judge_llm 判断结果： {raw_content.content.strip()}')
-        return "yes"
+        return "no"
     else:
         log.error('judge_llm 返回异常，无法路由，退出程序')
         return END

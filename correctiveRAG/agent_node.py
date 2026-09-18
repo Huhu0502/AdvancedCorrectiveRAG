@@ -4,16 +4,17 @@ from langchain_milvus import Milvus, BM25BuiltInFunction
 
 
 from model.embedding_models import bge_embedding, llm_qwen
+from utils.env_utils import COLLECTION_NAME, MV_URL
 
 
-def get_retriever(collection_name, uri) -> Tool:
+def get_retriever() -> Tool:
     vector_saved = Milvus(
-        collection_name=collection_name,
+        collection_name=COLLECTION_NAME,
         vector_field=['dense', 'sparse'],
         builtin_function=BM25BuiltInFunction(),
         embedding_function=bge_embedding,
         auto_id=True,
-        connection_args={'uri': uri}
+        connection_args={'uri': MV_URL}
     )
 
     retriever = vector_saved.as_retriever(
@@ -30,19 +31,19 @@ def get_retriever(collection_name, uri) -> Tool:
     return create_retriever_tool(
         retriever,
         name='rag_retriever',
-        description='搜索并返回关于"半导体的信息"'  # 工具描述，给大模型看的
+        description='搜索并返回关于"pi-agent的信息"'  # 工具描述，给大模型看的
     )
 
 
 prompt = ChatPromptTemplate.from_messages([
     ('system', '你是一名智能问答助手，擅长使用工具回答问题，你的任务是读取上下文，'
-               '如果问题出现了“等离子体”、“半导体”等专业知识必须调用工具查向量库再回答用户的问题，不能自己编写答案。'
+               '如果问题出现了“agent”、“pi”等专业知识必须调用工具查向量库再回答用户的问题，不能自己编写答案。'
                '这种问题是非常严谨、重要的问题，每次被问到，都要去用工具查询，不能用自己的理解'
                '。一定要问一次查一次！'),
     MessagesPlaceholder(variable_name='messages')
 ])
 
-retriever_tool = get_retriever('demo02', 'http://192.168.127.131:19530')
+retriever_tool = get_retriever()
 agent = prompt | llm_qwen.bind_tools([retriever_tool])  # 逻辑绑定 仅绑定不会用 还要在图中物理绑定
 # create_react_agent(llm, [tool1,tool2,..]).invoke()可以调工具，因为内部构建了一个 LangGraph 状态图
 
