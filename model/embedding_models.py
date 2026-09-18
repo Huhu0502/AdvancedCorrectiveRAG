@@ -7,24 +7,25 @@ from langchain_openai import ChatOpenAI
 
 load_dotenv()
 
+# 线上embedding模型
 embedding_model = OpenAIEmbeddings(
     base_url=os.getenv('dashscope_base_url'),
     api_key=os.getenv('dashscope_apikey'),
     model='qwen3.7-text-embedding'
 )
 
+# 本地embedding模型
 embedding = OllamaEmbeddings(
-    model='nomic-embed-text:latest',
-    base_url='http://localhost:11434'
+    model=os.getenv('ollama_embedding_model'),
+    base_url=os.getenv('ollama_embedding_base_url')
 )
 
-model_name = 'BAAI/bge-small-zh-v1.5'
-model_kwargs = {'device': 'cpu'}
-encode_kwargs = {'normalize_embeddings': True}  # 归一化一定要开
+
+# 向量库查询时使用的bge模型，归一化一定要开
 bge_embedding = HuggingFaceEmbeddings(
-    model_name=model_name,
-    model_kwargs=model_kwargs,
-    encode_kwargs=encode_kwargs
+    model_name='BAAI/bge-small-zh-v1.5',
+    model_kwargs={'device': 'cpu'},
+    encode_kwargs={'normalize_embeddings': True}
 )
 
 llm_qwen = ChatOpenAI(
@@ -34,7 +35,7 @@ llm_qwen = ChatOpenAI(
 )
 
 llm_ollama_judge = ChatOpenAI(
-    base_url='http://localhost:11434/v1',
-    model='qwen2.5:7b-instruct',
+    base_url=os.getenv('ollama_base_url'),
+    model=os.getenv('ollama_model'),
     api_key='ollama'
 )
