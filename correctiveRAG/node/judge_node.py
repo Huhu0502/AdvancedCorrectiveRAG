@@ -1,4 +1,4 @@
-from correctiveRAG.control.judeg import judge
+from correctiveRAG.control.judge import judge
 from correctiveRAG.message_tool import get_last_human_message
 from correctiveRAG.state.state import State
 
@@ -10,5 +10,5 @@ def judge_process(state: State):
 
     return {
         'judge_result': decision,
-        'control_events': [f"judge={decision} raw={raw_text[:50]!r}"]
+        'control_events': [f"判断模型judge={decision} raw={raw_text[:50]!r}"]
     }

@@ -13,7 +13,7 @@ class State(TypedDict):
     messages: Annotated[list[BaseMessage], add_messages]
     judge_result: str  # 'yes', 'no', 'unknown'
     next_step: str  # 'generate', 'rewrite', 'fallback'
-    degradation: int  # 0/1/2/3
+    degradation_level: int  # 0/1/2/3
     control_events: Annotated[list[str], operator.add]
 
 

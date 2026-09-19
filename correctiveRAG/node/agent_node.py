@@ -2,9 +2,10 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.tools import create_retriever_tool, Tool
 from langchain_milvus import Milvus, BM25BuiltInFunction
 
-
+from correctiveRAG.state.state import State
 from model.embedding_models import bge_embedding, llm_qwen
 from utils.env_utils import COLLECTION_NAME, MV_URL
+from utils.log_utils import log
 
 
 def get_retriever() -> Tool:
@@ -77,7 +78,14 @@ agent = prompt | llm_qwen.bind_tools([retriever_tool])  # 逻辑绑定 仅绑定
 # 重复构建开销：每次节点执行都会重新跑一遍 | 运算符，创建新的 RunnableSequence 对象。
 # 无法独立测试：想单独测试 agent 的 Prompt 效果时，必须把整个节点函数跑起来，耦合度高。
 # LangSmith 追踪混乱：每次调用都生成一个新的链实例，追踪面板里会出现大量重复条目，难以对比分析。
-
+def main_agent_process(state: State):
+    resp = agent.invoke(state)
+    # Agent 节点（LLM 调用）产生的回答结果本身就是 AIMessage 类（或其子类）
+    log.info('当前处于"main_agent"')
+    return {
+        # ' messages '定义是接收Message列表，而不是resp
+        'messages': [resp]
+    }
 
 
 if __name__ == '__main__':

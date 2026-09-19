@@ -1,30 +1,22 @@
 import uuid
 
-from langchain_core.messages import HumanMessage
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.constants import START, END
 from langgraph.graph import StateGraph
 from langgraph.prebuilt import tools_condition
 
-from correctiveRAG.node.agent_node import retriever_tool, agent
-from correctiveRAG.node.generate_node import generate_agent
-from correctiveRAG.node.rewrite_node import rewriter_agent
+from correctiveRAG.node.agent_node import retriever_tool, main_agent_process
+from correctiveRAG.node.decision_node import decide_process
+from correctiveRAG.node.fallback_node import fallback_process
+from correctiveRAG.node.generate_node import generate_process
+from correctiveRAG.node.judge_node import judge_process
+from correctiveRAG.node.rewrite_node import rewriter_process
 from correctiveRAG.state.state import State
 from correctiveRAG.control.tool_handler import create_tool_node_with_fallback
+from utils.draw_graph import draw_graph
 from utils.log_utils import log
 
 builder = StateGraph(State)
-
-
-def main_agent_process(state: State):
-    resp = agent.invoke(state)
-    # Agent 节点（LLM 调用）产生的回答结果本身就是 AIMessage 类（或其子类）
-    log.info('当前处于"main_agent"')
-    return {
-        # ' messages '定义是接收Message列表，而不是resp
-        'messages': [resp]
-    }
-
 
 builder.add_node('main_agent', main_agent_process)
 builder.add_edge(START, 'main_agent')
@@ -38,81 +30,45 @@ builder.add_conditional_edges(
     }
 )
 
+builder.add_node('judge_node', judge_process)
+builder.add_node('decide_node', decide_process)
+builder.add_node('fallback_node', fallback_process)
 
-def rewriter_process(state: State):
-    messages = state['messages']
-    human_messages = {}
+builder.add_edge('fallback_node', END)
+builder.add_edge('retriever_tool', 'judge_node')
+builder.add_edge('judge_node', 'decide_node')
 
-    for i in range(len(messages) - 1, -1, -1):
-        msg = messages[i]
-        if isinstance(msg, HumanMessage):
-            human_messages = msg
 
-    # msg.content  才是回答内容
-    log.info(f'human_msg:   {human_messages.content}')
-    resp = rewriter_agent.invoke({'user_question': human_messages.content})
-    log.info('当前处于"rewriter_node"')
-    return {'messages': [HumanMessage(content=resp.content)]}
+def decide_router(state: State):
+    next_step = state.get('next_step')
+    if next_step:
+        return next_step
 
+    log.error(f"状态数据next_step异常: {next_step}, 流程结束")
+    return END
+
+
+builder.add_conditional_edges(
+    'decide_node',
+    decide_router,
+    {
+        'generate': 'generate_node',
+        'rewrite': 'rewriter_node',
+        'fallback': 'fallback_node',
+        END: END
+    }
+)
 
 builder.add_node('rewriter_node', rewriter_process)
 builder.add_edge('rewriter_node', 'main_agent')
 
-
-def generate_process(state: State):
-    messages = state['messages']
-    human_messages = {}
-
-    for i in range(len(messages) - 1, -1, -1):
-        msg = messages[i]
-        if isinstance(msg, HumanMessage):
-            human_messages = msg
-    tool_messages = messages[-1]
-
-    resp = generate_agent.invoke(
-        {
-            'tool_output': tool_messages.content,
-            'user_question': human_messages
-        }
-    )
-    log.info('当前处于"generate_node"')
-    return {'messages': [resp]}
-
-
 builder.add_node('generate_node', generate_process)
 builder.add_edge('generate_node', END)
-
-
-def rewriter_router(state: State):
-    state_msg = state['messages']
-    tool_msg = state_msg[-1]
-
-
-
-
-
-builder.add_conditional_edges(
-    'retriever_tool',
-    rewriter_router,
-    {'yes': 'generate_node', 'no': 'rewriter_node', END: END}
-)
 
 memory = MemorySaver()
 graph = builder.compile(checkpointer=memory)
 
-
-def draw_graph(graph, file_name: str):
-    try:
-        mermaid_code = graph.get_graph().draw_mermaid_png()
-        with open(file_name, "wb") as f:
-            f.write(mermaid_code)
-
-    except Exception as e:
-        # 这需要一些额外的依赖项，是可选的 pass
-        log.exception(e)
-
-
-# draw_graph(graph, 'graph1.png')
+draw_graph(graph, 'graph2.png')
 session_id = str(uuid.uuid4())
 # update_dates()  # 每次启动就更新数据库某些时间字段，换成最新时间
 
@@ -125,24 +81,24 @@ config = {
 #  这个报错的根本原因是 LangGraph 的 ToolNode（或你自定义的 tool_edge）期望从 State 中读取 messages 字段，但你的 State 中实际使用的键名是 message（少了个 s）。
 # LangGraph 的预构建组件（如 ToolNode、tools_condition）以及大多数官方示例都硬编码依赖 messages 作为消息列表的字段名。当它尝试访问 state["messages"] 时找不到该键，就会抛出 No messages found in input state。
 
-if __name__ == '__main__':
-
-    # while True: 里的循环，才是用户多轮对话的推进。
-    while True:
-        question = input('用户输入：')
-        if question in ['q', 'quit', 'exit']:
-            break
-        else:
-            # 【第 1 步】瞬间完成。Python 只是创建了一个生成器对象赋给 events，图还没开始跑。
-            events = graph.stream({'messages': ('user', question)}, config, stream_mode='values')
-            # 【第 2 步】图开始跑！
-            # 当 Python 执行到 for 循环的第一次迭代（第一次执行 print）时，
-            # 它会向生成器“要”第一个值。此时，LangGraph 引擎才会被唤醒，
-            # 开始执行图中的第一个节点（比如 get_user_info），执行完后 yield 一个 event。
-            for event in events:
-                messages = event.get('messages')
-                msg = messages[-1]
-                print(msg.pretty_repr(html=True))
-
-            print("[DEBUG] 警告：图已执行完毕或中断失败，next 为空！")
-            # 执行用户下一句对话
+# if __name__ == '__main__':
+#
+#     # while True: 里的循环，才是用户多轮对话的推进。
+#     while True:
+#         question = input('用户输入：')
+#         if question in ['q', 'quit', 'exit']:
+#             break
+#         else:
+#             # 【第 1 步】瞬间完成。Python 只是创建了一个生成器对象赋给 events，图还没开始跑。
+#             events = graph.stream({'messages': ('user', question)}, config, stream_mode='values')
+#             # 【第 2 步】图开始跑！
+#             # 当 Python 执行到 for 循环的第一次迭代（第一次执行 print）时，
+#             # 它会向生成器“要”第一个值。此时，LangGraph 引擎才会被唤醒，
+#             # 开始执行图中的第一个节点（比如 get_user_info），执行完后 yield 一个 event。
+#             for event in events:
+#                 messages = event.get('messages')
+#                 msg = messages[-1]
+#                 print(msg.pretty_repr(html=True))
+#
+#             print("[DEBUG] 警告：图已执行完毕或中断失败，next 为空！")
+#             # 执行用户下一句对话

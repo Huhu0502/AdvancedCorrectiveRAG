@@ -7,7 +7,8 @@ class Degradation:
 
 class FallbackPolicy:
     # 降级策略
-    def build(self, level, source=None) -> str:
+    @staticmethod
+    def build(level, source=None) -> str:
         if level == Degradation.RETRIEVAL_ONLY:
             if source:
                 return "(降级：只返回检索结果) \n" + source
