@@ -7,10 +7,11 @@ from utils.log_utils import log
 
 
 def fallback_process(state: State):
-    log.info('当前处于"fallback_node"')
     level = state['degradation_level']
+    log.warn(f"当前处于'fallback_node'-->降级等级为 {level} ")
+
     tool_msg = get_last_tool_message(state['messages'])
-    final_answer = FallbackPolicy.build(level=level, source=tool_msg)
+    final_answer = FallbackPolicy.build(level=level, source=tool_msg.content or None)
 
     return {
         'messages': [AIMessage(content=final_answer)],

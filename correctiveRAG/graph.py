@@ -7,7 +7,7 @@ from langgraph.prebuilt import tools_condition
 
 from correctiveRAG.control.fallback import Degradation
 from correctiveRAG.node.agent_node import retriever_tool, main_agent_process
-from correctiveRAG.node.decision_node import decide_process
+from correctiveRAG.node.decide_node import decide_process
 from correctiveRAG.node.fallback_node import fallback_process
 from correctiveRAG.node.generate_node import generate_process
 from correctiveRAG.node.judge_node import judge_process
@@ -61,7 +61,24 @@ builder.add_conditional_edges(
 )
 
 builder.add_node('rewriter_node', rewriter_process)
-builder.add_edge('rewriter_node', 'main_agent')
+
+
+def rewrite_router(state: State):
+    next_step = state['next_step']
+    level = state['degradation_level']
+    if next_step == 'generate':
+        return 'generate'
+    return 'main_agent'
+
+
+builder.add_conditional_edges(
+    'rewriter_node',
+    rewrite_router,
+    {
+        'generate': 'generate_node',
+        'main_agent': 'main_agent'
+    }
+)
 
 builder.add_node('generate_node', generate_process)
 builder.add_edge('generate_node', END)
@@ -71,12 +88,11 @@ graph = builder.compile(checkpointer=memory)
 
 # draw_graph(graph, 'graph2.png')
 session_id = str(uuid.uuid4())
-# update_dates()  # 每次启动就更新数据库某些时间字段，换成最新时间
-
 config = {
     'configurable': {
-        'thread_id': session_id
+        'thread_id': session_id,
     },
+    'recursion_limit': 25,  # 节点执行次数上限
 }
 
 #  这个报错的根本原因是 LangGraph 的 ToolNode（或你自定义的 tool_edge）期望从 State 中读取 messages 字段，但你的 State 中实际使用的键名是 message（少了个 s）。
@@ -95,8 +111,10 @@ if __name__ == '__main__':
                 'messages': [('user', question)],
                 'judge_result': '',
                 'next_step': '',
-                'degradation': Degradation.NORMAL,  # 0
+                'degradation_level': Degradation.NORMAL,  # 0
                 'control_events': [],
+                'rewrite_count': 0,
+                'rewritten_queries': []
             }
             # 【第 1 步】瞬间完成。Python 只是创建了一个生成器对象赋给 events，图还没开始跑。
             #  stream_mode=value 每个节点跑完后把整个state快照吐出来一次，结合打印部分代码，每个跑完打印最后一条消息，

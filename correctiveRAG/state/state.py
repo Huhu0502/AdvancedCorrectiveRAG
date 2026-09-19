@@ -15,6 +15,8 @@ class State(TypedDict):
     next_step: str  # 'generate', 'rewrite', 'fallback'
     degradation_level: int  # 0/1/2/3
     control_events: Annotated[list[str], operator.add]
+    rewrite_count: int  # 重写次数
+    rewritten_queries: Annotated[list[str], operator.add]  # 重写的提问记录，做相似度对比
 
 
 # 数据模型

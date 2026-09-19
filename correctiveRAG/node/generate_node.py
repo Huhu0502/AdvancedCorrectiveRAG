@@ -1,6 +1,8 @@
 from langchain_core.messages import HumanMessage
 from langchain_core.prompts import ChatPromptTemplate
 
+from correctiveRAG.control.fallback import Degradation
+from correctiveRAG.message_tool import get_last_human_message, get_last_tool_message
 from correctiveRAG.state.state import State
 from model.embedding_models import llm_qwen
 from utils.log_utils import log
@@ -15,14 +17,15 @@ generate_agent = prompt | llm_qwen
 
 
 def generate_process(state: State):
-    messages = state['messages']
-    human_messages = {}
+    level = state.get('degradation_level', 0)
+    if level > Degradation.STATIC:
+        log.warn(f'当前处于"generate_node"-->降级等级为{level}')
+    else:
+        log.info(f'当前处于"generate_node" 未出现降级')
 
-    for i in range(len(messages) - 1, -1, -1):
-        msg = messages[i]
-        if isinstance(msg, HumanMessage):
-            human_messages = msg
-    tool_messages = messages[-1]
+    messages = state['messages']
+    human_messages = get_last_human_message(messages)
+    tool_messages = get_last_tool_message(messages)
 
     resp = generate_agent.invoke(
         {
@@ -30,5 +33,4 @@ def generate_process(state: State):
             'user_question': human_messages
         }
     )
-    log.info('当前处于"generate_node"')
     return {'messages': [resp]}
