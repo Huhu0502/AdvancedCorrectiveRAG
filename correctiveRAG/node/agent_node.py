@@ -79,9 +79,10 @@ agent = prompt | llm_qwen.bind_tools([retriever_tool])  # 逻辑绑定 仅绑定
 # 无法独立测试：想单独测试 agent 的 Prompt 效果时，必须把整个节点函数跑起来，耦合度高。
 # LangSmith 追踪混乱：每次调用都生成一个新的链实例，追踪面板里会出现大量重复条目，难以对比分析。
 def main_agent_process(state: State):
-    resp = agent.invoke(state)
+    resp = agent.invoke({'messages': state['messages']})
     # Agent 节点（LLM 调用）产生的回答结果本身就是 AIMessage 类（或其子类）
     log.info('当前处于"main_agent"')
+    log.info(f"main_agent 返回，tool_calls 数量: {len(resp.tool_calls)}")
     return {
         # ' messages '定义是接收Message列表，而不是resp
         'messages': [resp]

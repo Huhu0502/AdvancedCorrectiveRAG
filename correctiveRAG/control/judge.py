@@ -3,7 +3,7 @@ import re
 from langchain_core.prompts import ChatPromptTemplate
 
 from correctiveRAG.state.state import Grade
-from model.embedding_models import deepseek_llm
+from model.embedding_models import deepseek_llm, llm_qwen
 from utils.log_utils import log
 
 
@@ -17,7 +17,7 @@ def judge(question, context) -> tuple[str, str]:
     # 一定要打印日志！！！有时候出错不一定报错
     # 部分不支持结构化输出，导致返回不可控制的结果，最后路由失败报错。with_structured_output 已经自动解析并返回对象，
     # invoke() 的返回值不再是 AIMessage，没有 .content 属性。
-    judge_agent = prompt | deepseek_llm.with_structured_output(Grade)
+    judge_agent = prompt | llm_qwen.with_structured_output(Grade)
     raw_text = ""
     try:  # 网络错误、DeepSeek 不支持函数调用、解析失败
         raw = judge_agent.invoke(input={'human_question': question, 'tool_msg': context})

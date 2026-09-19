@@ -1,8 +1,10 @@
 from correctiveRAG.control.fallback import Degradation
 from correctiveRAG.state.state import State
+from utils.log_utils import log
 
 
 def decide_process(state: State) -> dict:
+    log.info('当前处于"decide_node"')
     result = state.get('judge_result')
     if result == "yes":
         return {
