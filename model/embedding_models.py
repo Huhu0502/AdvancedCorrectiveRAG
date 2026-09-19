@@ -34,8 +34,8 @@ llm_qwen = ChatOpenAI(
     api_key=os.getenv('dashscope_apikey')
 )
 
-llm_ollama_judge = ChatOpenAI(
-    base_url=os.getenv('ollama_base_url'),
-    model=os.getenv('ollama_model'),
-    api_key='ollama'
+deepseek_llm = ChatOpenAI(
+    base_url=os.getenv('deepseek_base_url'),
+    model=os.getenv('deepseek_model'),
+    api_key=os.getenv('deepseek_api_key')
 )
