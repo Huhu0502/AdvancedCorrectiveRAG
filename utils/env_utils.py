@@ -6,3 +6,7 @@ COLLECTION_NAME = 'pi_agent'
 MV_URL = 'http://192.168.127.131:19530'
 
 MAX_REWRITE_COUNT = 3
+
+SENSITIVE_WORDS = ['政治', '侵犯', '盗窃', '违法', '机密']
+
+

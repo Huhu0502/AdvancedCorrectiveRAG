@@ -6,6 +6,7 @@ from langgraph.graph import StateGraph
 from langgraph.prebuilt import tools_condition
 
 from correctiveRAG.control.fallback import Degradation
+from correctiveRAG.control.sensitive import SensitiveWordGuard
 from correctiveRAG.node.agent_node import retriever_tool, main_agent_process
 from correctiveRAG.node.decide_node import decide_process
 from correctiveRAG.node.fallback_node import fallback_process
@@ -101,17 +102,21 @@ config = {
 
 #  这个报错的根本原因是 LangGraph 的 ToolNode（或你自定义的 tool_edge）期望从 State 中读取 messages 字段，但你的 State 中实际使用的键名是 message（少了个 s）。
 # LangGraph 的预构建组件（如 ToolNode、tools_condition）以及大多数官方示例都硬编码依赖 messages 作为消息列表的字段名。当它尝试访问 state["messages"] 时找不到该键，就会抛出 No messages found in input state。
-recorder = TurnRecorder()
+
 
 if __name__ == '__main__':
+    recorder = TurnRecorder()
+    guard = SensitiveWordGuard()
     turn = 0
     # while True: 里的循环，才是用户多轮对话的推进。
     while True:
         question = input('用户输入：')
-        trace = Trace(session_id=config['configurable']['thread_id'], user_input=question, turn_id=turn)
+        ok, sensitive_words = guard.check_input(question)
         if question in ['q', 'quit', 'exit']:
             break
-
+        elif not ok:
+            print(f"[已拦截] 输入包含敏感内容: {sensitive_words}")
+            continue
         else:
             try:
                 initial_state = {
@@ -123,6 +128,7 @@ if __name__ == '__main__':
                     'rewrite_count': 0,
                     'rewritten_queries': []
                 }
+                trace = Trace(session_id=config['configurable']['thread_id'], user_input=question, turn_id=turn)
                 # 【第 1 步】瞬间完成。Python 只是创建了一个生成器对象赋给 events，图还没开始跑。
                 #  stream_mode=value 每个节点跑完后把整个state快照吐出来一次，结合打印部分代码，每个跑完打印最后一条消息，
                 #  那么在judge_node和decide_node没有新增消息，就把之前的最后一条消息也就是tool msg打印，所以一个没有重写的trace里打印了3次
@@ -141,7 +147,7 @@ if __name__ == '__main__':
                                     print(m.pretty_repr(html=True))
 
                     final_state = graph.get_state(config=config).values
-                    answer = final_state['messages'][-1].content
+                    answer = guard.mask_output(final_state['messages'][-1].content)
                     degradation = final_state.get('degradation_level', 0)
                     error = None
                     if degradation > 0:
@@ -157,6 +163,6 @@ if __name__ == '__main__':
                 answer = None
                 degradation = 0
 
-        turn += 1
-        trace.finish(final_answer=answer, degradation_level=degradation, status=status, error=error)
-        recorder.record(trace)
+            turn += 1
+            trace.finish(final_answer=answer, degradation_level=degradation, status=status, error=error)
+            recorder.record(trace)

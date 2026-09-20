@@ -160,7 +160,7 @@ def trace_node(name):
         @functools.wraps(fn)
         def wrapper(*args, **kwargs):
             trace = TraceContext.get_trace()
-            span = trace.add_span(Span(name=name, kind='node')) if trace else None
+            span = trace.add_span(Span(name=name, kind='node', input=_summary(args[0] if args else kwargs))) if trace else None
             t0 = time.time()
             try:
                 res = fn(*args, **kwargs)

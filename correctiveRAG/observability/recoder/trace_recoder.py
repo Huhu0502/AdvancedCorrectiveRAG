@@ -15,7 +15,7 @@ class TurnRecorder:
         self.trace_dir.mkdir(parents=True, exist_ok=True)
         path = self.trace_dir / f"{trace.session_id}.json"
         with open(path, "a", encoding="utf-8") as f:
-            f.write(json.dumps(trace.to_dict(), ensure_ascii=False) + "\n")
+            f.write(json.dumps(trace.to_dict(), ensure_ascii=False, indent=2) + "\n")
 
     def get_turns(self,  session_id, date: str = None):
         if date is not None:
