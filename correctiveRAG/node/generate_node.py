@@ -3,6 +3,7 @@ from langchain_core.prompts import ChatPromptTemplate
 
 from correctiveRAG.control.fallback import Degradation
 from correctiveRAG.message_tool import get_last_human_message, get_last_tool_message
+from correctiveRAG.observability.trace import trace_node
 from correctiveRAG.state.state import State
 from model.embedding_models import llm_qwen
 from utils.log_utils import log
@@ -16,10 +17,11 @@ prompt = ChatPromptTemplate.from_messages([
 generate_agent = prompt | llm_qwen
 
 
+@trace_node("generate_node")
 def generate_process(state: State):
     level = state.get('degradation_level', 0)
-    if level > Degradation.STATIC:
-        log.warn(f'当前处于"generate_node"-->降级等级为{level}')
+    if level > Degradation.NORMAL:
+        log.warning(f'当前处于"generate_node"-->降级等级为{level}')
     else:
         log.info(f'当前处于"generate_node" 未出现降级')
 

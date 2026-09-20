@@ -2,6 +2,7 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.tools import create_retriever_tool, Tool
 from langchain_milvus import Milvus, BM25BuiltInFunction
 
+from correctiveRAG.observability.trace import trace_node
 from correctiveRAG.state.state import State
 from model.embedding_models import bge_embedding, llm_qwen
 from utils.env_utils import COLLECTION_NAME, MV_URL
@@ -38,14 +39,19 @@ def get_retriever() -> Tool:
 
 prompt = ChatPromptTemplate.from_messages([
     ('system', '你是一名智能问答助手，擅长使用工具回答问题，你的任务是读取上下文，'
+               '。回答任何问题前，必须先调用 rag_retriever 工具检索知识库，'
+               '基于检索结果回答。即使你认为自己知道答案，也必须先检索，不得直接回答。'
                '如果问题出现了“agent”、“pi”等专业知识必须调用工具查向量库再回答用户的问题，不能自己编写答案。'
                '这种问题是非常严谨、重要的问题，每次被问到，都要去用工具查询，不能用自己的理解'
+               '除非用户输入是纯闲聊（如"你好""谢谢"），否则必须调用 rag_retriever 工具检索知识库后再回答'
                '。一定要问一次查一次！'),
     MessagesPlaceholder(variable_name='messages')
 ])
 
 retriever_tool = get_retriever()
 agent = prompt | llm_qwen.bind_tools([retriever_tool])  # 逻辑绑定 仅绑定不会用 还要在图中物理绑定
+
+
 # create_react_agent(llm, [tool1,tool2,..]).invoke()可以调工具，因为内部构建了一个 LangGraph 状态图
 
 
@@ -78,6 +84,7 @@ agent = prompt | llm_qwen.bind_tools([retriever_tool])  # 逻辑绑定 仅绑定
 # 重复构建开销：每次节点执行都会重新跑一遍 | 运算符，创建新的 RunnableSequence 对象。
 # 无法独立测试：想单独测试 agent 的 Prompt 效果时，必须把整个节点函数跑起来，耦合度高。
 # LangSmith 追踪混乱：每次调用都生成一个新的链实例，追踪面板里会出现大量重复条目，难以对比分析。
+@trace_node("main_agent")
 def main_agent_process(state: State):
     resp = agent.invoke({'messages': state['messages']})
     # Agent 节点（LLM 调用）产生的回答结果本身就是 AIMessage 类（或其子类）

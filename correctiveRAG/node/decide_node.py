@@ -1,10 +1,12 @@
 from correctiveRAG.control.fallback import Degradation
 from correctiveRAG.control.loop_guard import allow_rewrite
+from correctiveRAG.observability.trace import trace_node
 from correctiveRAG.state.state import State
 from utils.env_utils import MAX_REWRITE_COUNT
 from utils.log_utils import log
 
 
+@trace_node("decide_node")
 def decide_process(state: State) -> dict:
     log.info('当前处于"decide_node"')
     result = state.get('judge_result')

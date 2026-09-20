@@ -5,6 +5,7 @@ from langchain_core.prompts import ChatPromptTemplate
 
 from correctiveRAG.control.fallback import Degradation
 from correctiveRAG.message_tool import get_last_human_message
+from correctiveRAG.observability.trace import trace_node
 from correctiveRAG.state.state import State
 from model.embedding_models import llm_qwen
 from utils.log_utils import log
@@ -29,6 +30,7 @@ rewriter_agent = prompt | llm_qwen
 #
 #    防线3（工程层）：recursion_limit 硬顶
 #         LangGraph 的兜底，即使前两道没拦住，也强制中断
+@trace_node("rewrite_node")
 def rewriter_process(state: State):
     log.info('当前处于"rewriter_node"')
     messages = state['messages']
