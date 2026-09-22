@@ -12,6 +12,7 @@ from correctiveRAG.node.decide_node import decide_process
 from correctiveRAG.node.fallback_node import fallback_process
 from correctiveRAG.node.generate_node import generate_process
 from correctiveRAG.node.judge_node import judge_process
+from correctiveRAG.node.query_understanding_node import query_rewrite_process
 from correctiveRAG.node.rewrite_node import rewriter_process
 from correctiveRAG.observability.callbacks import TraceCallbackHandler
 from correctiveRAG.observability.context.trace_context import TraceContext
@@ -19,13 +20,16 @@ from correctiveRAG.observability.recoder.trace_recoder import TurnRecorder
 from correctiveRAG.observability.trace import Trace
 from correctiveRAG.state.state import State
 from correctiveRAG.control.tool_handler import create_tool_node_with_fallback
+from utils.draw_graph import draw_graph
 from utils.log_utils import log
 
 builder = StateGraph(State)
 
 builder.add_node('main_agent', main_agent_process)
-builder.add_edge(START, 'main_agent')
 builder.add_node('retriever_tool', create_tool_node_with_fallback([retriever_tool]))
+builder.add_node('query_rewrite_node', query_rewrite_process)
+builder.add_edge(START, 'query_rewrite_node')       # START 先到改写节点
+builder.add_edge('query_rewrite_node', 'main_agent')  # 改写后再到 main_agent
 builder.add_conditional_edges(
     'main_agent',
     tools_condition,
@@ -90,7 +94,7 @@ builder.add_edge('generate_node', END)
 memory = MemorySaver()
 graph = builder.compile(checkpointer=memory)
 
-# draw_graph(graph, 'graph2.png')
+draw_graph(graph, 'graph3.png')
 session_id = str(uuid.uuid4())
 config = {
     'configurable': {

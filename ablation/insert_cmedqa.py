@@ -43,7 +43,7 @@ def build_schema(client: MilvusClient):
     # 关键：doc_id 用于和 qrels 的 pid 对齐
     schema.add_field(field_name='doc_id', datatype=DataType.VARCHAR, max_length=1000, nullable=True)
     schema.add_field(field_name='sparse', datatype=DataType.SPARSE_FLOAT_VECTOR)
-    schema.add_field(field_name='dense', datatype=DataType.FLOAT_VECTOR, dim=512)
+    schema.add_field(field_name='dense', datatype=DataType.FLOAT_VECTOR, dim=1024)
 
     bm25_function = Function(
         name="text_bm25_emb",
@@ -121,3 +121,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+

@@ -11,9 +11,15 @@ from model.embedding_models import llm_qwen
 from utils.log_utils import log
 
 prompt = ChatPromptTemplate.from_messages([
-    ('system', '你是一名语义理解专家，你的任务是理解用户提问： \n{user_question}'
-               '\n，但是这条提问没有很好的效果，你只要输出一条新的提问，替代用户的问题，'
-               '除此之外不要回答其他内容')
+    ('system', '你是一名医疗问诊语义理解专家。请把用户的口语化问题改写成一条规范、简洁、适合检索的医疗查询。\n\n'
+               '改写规则：\n'
+               '1. 去除口语化前缀和无关信息（如"想确定一下""前几天""怎么回事啊"等），只保留核心医疗诉求\n'
+               '2. 把口语症状描述规范化为医学术语（如"红点点"→"红疹"，"长水泡"→"皮肤水疱"）\n'
+               '3. 明确用户的核心意图：是问病因、诊断、用药、还是日常护理\n'
+               '4. 输出一句话的规范查询，不要超过 30 字\n'
+               '5. 不要回答用户，只输出改写后的查询\n\n'
+               '用户原话：{user_question}\n'
+               '改写后的查询：')
 ])
 
 rewriter_agent = prompt | llm_qwen

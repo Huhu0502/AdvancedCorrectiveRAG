@@ -23,7 +23,7 @@ embedding = OllamaEmbeddings(
 
 # 向量库查询时使用的bge模型，归一化一定要开
 bge_embedding = HuggingFaceEmbeddings(
-    model_name='BAAI/bge-small-zh-v1.5',
+    model_name='D:/huggingface_cache/models/BAAI--bge-large-zh-v1.5/snapshots/master',   # 本地绝对路径（768维）
     model_kwargs={'device': 'cpu'},
     encode_kwargs={'normalize_embeddings': True}
 )

@@ -20,7 +20,7 @@ from sentence_transformers import CrossEncoder
 from model.embedding_models import bge_embedding
 from utils.env_utils import COLLECTION_NAME, MV_URL
 
-RERANK_MODEL = 'BAAI/bge-reranker-base'
+RERANK_MODEL = 'D:/huggingface_cache/models/BAAI--bge-reranker-base/snapshots/master'
 RECALL_K = 20
 
 CORPUS_PATH = '../data/from_modelscope/corpus-00000-of-00001-a3949861f65a3226.parquet'
